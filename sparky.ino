@@ -7,8 +7,8 @@
 // RADIO //
 #define CHANNEL 55
 #define JOYSTICK_DEADZONE 5
-#define NRF_CE 45
-#define NRF_CSN 47
+#define NRF_CE 38
+#define NRF_CSN 39
 
 // SERVOS //
 #define LEFT_WING_PIN 25
@@ -22,10 +22,11 @@
 
 // DC MOTORS //
 Adafruit_MotorShield AFMS = Adafruit_MotorShield();
-Adafruit_DCMotor* motor_scoopy = AFMS.getMotor(1);
-Adafruit_DCMotor* motor_plat   = AFMS.getMotor(2);
-Adafruit_DCMotor* motor_spinny = AFMS.getMotor(3);
-DRV8835MotorShield motors; // M1->left, M2->right
+Adafruit_DCMotor* motor_scoopy = AFMS.getMotor(3);
+Adafruit_DCMotor* motor_plat   = AFMS.getMotor(4);
+Adafruit_DCMotor* motor_left = AFMS.getMotor(1);
+Adafruit_DCMotor* motor_right = AFMS.getMotor(2);
+DRV8835MotorShield motors = DRV8835MotorShield(48,46,44,42); // M1->left, M2->right
 
 // RADIO //
 ControlInput input; // holds values from controller
@@ -74,15 +75,8 @@ void deployMCM() {
 }
 
 void drive(int left, int right) {
-    int left_speed = map(left, 0,255, 0,400);
-    int right_speed = map(right, 0,255, 0,400);
-
-    /*
-    motors.setSpeeds(left_speed, right_speed);
-    */
-
-   drive(motor_plat, left);
-   drive(motor_scoopy, right);
+    drive(motor_left, -left);
+    drive(motor_right, right);
 }
 
 void drive(Adafruit_DCMotor* motor, int speed) {
@@ -93,43 +87,63 @@ void drive(Adafruit_DCMotor* motor, int speed) {
 }
 
 void pushButtons(int buttons[5]) {
-  // for each button in the sequence, deploy the corresponding servo
-  //    and fold it back up
-  for (int button = 0; button < 5; button++) {
-    Servo servo;
-    int deployed;
-    int folded;
-    if (buttons[button] == 1) {
-      servo = wing_left;
-      deployed = wlft_d;
-      folded = wlft_f;
-    }
-    else if (buttons[button] == 2) {
-      servo = left;
-      deployed = left_d;
-      folded = left_f;
-    }
-    else if (buttons[button] == 3) {
-      servo = midd;
-      deployed = midd_d;
-      folded = midd_f;
-    }
-    else if (buttons[button] == 4) {
-      servo = rght;
-      deployed = rght_d;
-      folded = rght_f;
-    }
-    else if (buttons[button] == 5) {
-      servo = wing_rght;
-      deployed = wrgt_d;
-      folded = wrgt_f;
-    }
+    left_wing.attach(LEFT_WING_PIN);
+    rght_wing.attach(RGHT_WING_PIN);
+    wing_left.attach(LEFT_WMOT_PIN);
+    left.attach(LEFT_MOTR_PIN);
+    midd.attach(MIDD_MOTR_PIN);
+    rght.attach(RGHT_MOTR_PIN);
+    wing_rght.attach(RGHT_WMOT_PIN);
+    // for each button in the sequence, deploy the corresponding servo
+    //    and fold it back up
+    for (int button = 0; button < 5; button++)
+    {
+        Servo servo;
+        int deployed;
+        int folded;
+        if (buttons[button] == 1)
+        {
+            servo = wing_left;
+            deployed = wlft_d;
+            folded = wlft_f;
+        }
+        else if (buttons[button] == 2)
+        {
+            servo = left;
+            deployed = left_d;
+            folded = left_f;
+        }
+        else if (buttons[button] == 3)
+        {
+            servo = midd;
+            deployed = midd_d;
+            folded = midd_f;
+        }
+        else if (buttons[button] == 4)
+        {
+            servo = rght;
+            deployed = rght_d;
+            folded = rght_f;
+        }
+        else if (buttons[button] == 5)
+        {
+            servo = wing_rght;
+            deployed = wrgt_d;
+            folded = wrgt_f;
+        }
 
-    servo.write(deployed);
-    delay(500);
-    servo.write(folded);
-    delay(300);
+        servo.write(deployed);
+        delay(500);
+        servo.write(folded);
+        delay(300);
   }
+  left_wing.detach();
+  rght_wing.detach();
+  wing_left.detach();
+  left.detach();
+  midd.detach();
+  rght.detach();
+  wing_rght.detach();
 }
 
 void retractMCM() {
@@ -147,21 +161,7 @@ void retractMCM() {
 
 
 void setup() {
-    left_wing.attach(LEFT_WING_PIN);
-    rght_wing.attach(RGHT_WING_PIN);
-    wing_left.attach(LEFT_WMOT_PIN);
-    left.attach(LEFT_MOTR_PIN);
-    midd.attach(MIDD_MOTR_PIN);
-    rght.attach(RGHT_MOTR_PIN);
-    wing_rght.attach(RGHT_WMOT_PIN);
 
-    left_wing.write(lftw_f);
-    rght_wing.write(rgtw_f);
-    wing_left.write(wlft_f);
-    left.write(left_f);
-    midd.write(midd_f);
-    rght.write(rght_f);
-    wing_rght.write(wrgt_f);
 
     Serial.begin(9600);
 
@@ -182,11 +182,11 @@ void loop() {
         if (abs(input.j1PotY) > JOYSTICK_DEADZONE){
             left = input.j1PotY;
         }
-        if (abs(input.j2PotX) > JOYSTICK_DEADZONE){
-            right = input.j2PotX;
+        if (abs(input.j1PotX) > JOYSTICK_DEADZONE){
+            right = input.j1PotX;
         }
         // Arcade drive
-        drive(left + right * 0.49, left - right * 0.49);
+        drive(left + right * 0.4, left - right * 0.4);
 
         if (abs(input.j2PotX) > JOYSTICK_DEADZONE){
             drive(motor_plat, input.j2PotX);
@@ -200,11 +200,11 @@ void loop() {
             pushButtons(buttons);
         }
 
-        if (input.button3) drive(motor_spinny, 255);
+/*         if (input.button3) drive(motor_spinny, 255);
         else if (input.button4) drive(motor_spinny, -255);
-        else drive(motor_spinny,0);
+        else drive(motor_spinny,0); */
 
-        if (input.tSwitch) retractMCM();
+        if (!input.tSwitch) retractMCM();
         else if (input.tSwitch) deployMCM();
 
 
@@ -213,6 +213,6 @@ void loop() {
         drive(0,0);
         drive(motor_plat, 0);
         drive(motor_scoopy, 0);
-        drive(motor_spinny, 0);
+        //drive(motor_spinny, 0);
     }
 }
